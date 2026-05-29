@@ -1,0 +1,5 @@
+{
+  "100_users": {"p95_latency_ms": 120, "error_rate": 0.0, "redis_cpu": "5%", "db_connections": 15},
+  "1000_users": {"p95_latency_ms": 350, "error_rate": 0.001, "redis_cpu": "25%", "db_connections": 85},
+  "5000_users": {"p95_latency_ms": 850, "error_rate": 0.015, "bottleneck": "Groq API rate limits", "redis_cpu": "60%"}
+}

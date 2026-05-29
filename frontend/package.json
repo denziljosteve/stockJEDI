@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.14",
+    "axios": "^1.16.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.6.0"
+  }
+}

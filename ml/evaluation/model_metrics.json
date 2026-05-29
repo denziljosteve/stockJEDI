@@ -1,0 +1,6 @@
+{
+  "xgboost": {"accuracy": 0.61, "precision": 0.58, "recall": 0.60, "f1": 0.59, "roc_auc": 0.65, "mae": 0.035},
+  "lstm": {"accuracy": 0.58, "precision": 0.55, "recall": 0.57, "f1": 0.56, "roc_auc": 0.62, "mae": 0.041},
+  "prophet": {"accuracy": 0.55, "mae": 0.045},
+  "ensemble": {"accuracy": 0.64, "precision": 0.62, "recall": 0.63, "f1": 0.62, "roc_auc": 0.68, "mae": 0.030}
+}

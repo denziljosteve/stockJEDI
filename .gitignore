@@ -1,0 +1,71 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# ML models and datasets
+ml/saved_models/*
+ml/datasets/raw/*
+ml/datasets/processed/*
+ml/datasets/training/*
+!ml/saved_models/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+docker-data/
+*.tar
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+verify_deployment.py
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+credentials.json
+service-account.json
+firebase-adminsdk.json
+
+# Kubernetes
+kubeconfig*
+*.kubeconfig
+
+# Local overrides
+*.local

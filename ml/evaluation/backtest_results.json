@@ -1,0 +1,8 @@
+{
+  "period": "2020-01-01 to 2023-12-31",
+  "total_trades": 1245,
+  "win_rate": 0.58,
+  "sharpe_ratio": 1.45,
+  "max_drawdown": 0.15,
+  "annualized_return": 0.22
+}
