@@ -464,4 +464,14 @@ node --version
 
 ---
 
+## Author
+
+**Denzil Josteve Fernandes**
+
+- 📧 Email: [denziljosteve@gmail.com](mailto:denziljosteve@gmail.com)
+- 💼 LinkedIn: [linkedin.com/in/denziljosteve](https://www.linkedin.com/in/denziljosteve)
+- 🐙 GitHub: [github.com/denziljosteve](https://github.com/denziljosteve)
+
+---
+
 **Last Updated:** June 2026

@@ -1,56 +1,308 @@
 # stockJEDI
 
-AI-Powered Stock Intelligence and Investment Analysis Platform.
+AI-Powered Stock Intelligence and Investment Analysis Platform
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688?style=flat&logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-14.0-000000?style=flat&logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-06B6D4?style=flat&logo=tailwind-css&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-24-2496ED?style=flat&logo=docker&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat&logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat&logo=redis&logoColor=white)
+
+---
 
 ## Overview
 
-stockJEDI is an AI-powered stock intelligence platform that accepts stock URLs, ticker symbols, or company names from financial platforms and produces institutional-style investment analysis.
+stockJEDI is an AI-powered stock intelligence platform that accepts stock URLs, ticker symbols, or company names from financial platforms and produces institutional-style investment analysis. The platform combines machine learning models (XGBoost, LSTM, Prophet) with AI-powered report generation to deliver comprehensive stock analysis.
+
+### Key Features
+
+- **Multi-source Input**: Accepts stock URLs, ticker symbols, or company names from 8+ financial platforms
+- **AI-Powered Analysis**: Institutional-grade investment reports generated using Groq API
+- **ML Predictions**: Ensemble model combining XGBoost, LSTM, and Prophet for price predictions
+- **Technical Analysis**: RSI, MACD, Bollinger Bands, ATR, VWAP, and more
+- **Sentiment Analysis**: News and social media sentiment scoring
+- **Real-time Dashboard**: Interactive frontend with charts and recommendations
+- **Portfolio Management**: Track holdings and analyze portfolio performance
+- **Watchlist**: Monitor favorite stocks with real-time updates
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Next.js 14, React 18, TypeScript, TailwindCSS |
+| **Backend** | FastAPI, Python 3.12, SQLAlchemy, Pydantic |
+| **Database** | PostgreSQL 15, Redis 7 |
+| **ML/AI** | XGBoost, TensorFlow (LSTM), Prophet, Groq API |
+| **Infrastructure** | Docker Compose, Nginx, Alembic Migrations |
+| **Monitoring** | Prometheus, Structured Logging (Loguru) |
+
+---
 
 ## Project Structure
 
-- `frontend/`: Next.js, React, TailwindCSS, TypeScript.
-- `backend/`: FastAPI, Python.
-- `ml/`: XGBoost, LSTM, Prophet models, along with training and data collection scripts.
-...
-## Intelligence Engine Initialization
+```
+stockJEDI/
+├── backend/                    # FastAPI backend application
+│   ├── app/                    # Application code
+│   │   ├── api/               # API endpoints
+│   │   ├── auth/              # Authentication (JWT)
+│   │   ├── core/              # Configuration
+│   │   ├── db/                # Database session
+│   │   ├── middleware/        # Error handling, logging, rate limiting
+│   │   ├── models/            # SQLAlchemy ORM models
+│   │   ├── schemas/           # Pydantic schemas
+│   │   └── services/          # Business logic
+│   ├── alembic/               # Database migrations
+│   ├── Dockerfile             # Backend container
+│   └── requirements.txt       # Python dependencies
+├── frontend/                   # Next.js frontend application
+│   ├── src/
+│   │   ├── app/               # Pages and routes
+│   │   ├── components/        # React components
+│   │   ├── services/          # API client
+│   │   └── types/             # TypeScript types
+│   ├── package.json           # Node.js dependencies
+│   └── *.config.js            # Configuration files
+├── ml/                         # Machine learning pipeline
+│   ├── datasets/              # Data collection and processing
+│   ├── training/              # Model training scripts
+│   ├── models/                # Model implementations
+│   ├── features/              # Feature engineering
+│   ├── evaluation/            # Model evaluation metrics
+│   └── saved_models/          # Trained model files
+├── deployment/                 # Deployment configurations
+│   ├── nginx.conf             # Nginx configuration
+│   └── kubernetes.yaml        # Kubernetes manifests
+├── docker-compose.yml         # Docker orchestration
+├── docker-compose.dev.yml     # Development overrides
+└── .env.example               # Environment variables template
+```
 
-To move from structural prototype to a live intelligence engine, the following steps must be executed:
+---
 
-1. **Collect Historical Data:**
-   ```bash
-   python3 ml/datasets/data_collector.py
-   ```
-2. **Train ML Models:**
-   ```bash
-   python3 ml/training/train_xgboost.py
-   # Repeat for train_lstm.py, train_prophet.py, and train_ensemble.py
-   ```
+## Quick Start
 
-This will populate `ml/saved_models/` and enable real probability-based predictions.
-- `prompts/`: AI analysis prompts.
-- `jobs/`: Background tasks (Celery).
-- `database/`: Database schemas and migrations.
-- `docs/`: Documentation.
-- `deployment/`: Docker and deployment scripts.
-- `monitoring/`: Monitoring configurations.
-- `logs/`: Application logs.
+### Prerequisites
 
-## Environment Setup
+- Docker and Docker Compose
+- Git
+- Groq API Key (free from [console.groq.com](https://console.groq.com/))
 
-1. **Copy the example environment file:**
-   ```bash
-   cp .env.example .env
-   ```
+### 1. Clone the Repository
 
-2. **Configure your credentials:**
-   Open the `.env` file and replace the placeholders with your actual API keys and connection strings:
-   - `GROQ_API_KEY`: Get this from the Groq console.
-   - `DATABASE_URL`: Your PostgreSQL connection string.
-   - `REDIS_URL`: Your Redis connection string.
-   - `JWT_SECRET`: A strong random string for signing tokens.
+```bash
+git clone https://github.com/denziljosteve/stockJEDI.git
+cd stockJEDI
+```
 
-The application includes a startup validator that will prevent the backend from running if these required secrets are missing or still contain the default placeholders.
+### 2. Configure Environment
 
-## Setup
+```bash
+cp .env.example .env
+# Edit .env and add your GROQ_API_KEY
+```
 
-(Instructions to be added)
+### 3. Start with Docker
+
+```bash
+docker-compose up --build
+```
+
+### 4. Access the Application
+
+| Service | URL |
+|---------|-----|
+| **Frontend** | http://localhost:3000 |
+| **Backend API** | http://localhost:8000 |
+| **API Documentation** | http://localhost:8000/docs |
+| **Prometheus Metrics** | http://localhost:8000/metrics |
+
+---
+
+## Development Setup
+
+### Manual Setup (Without Docker)
+
+#### Backend
+
+```bash
+# Create virtual environment
+cd backend
+python3.12 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run migrations
+alembic upgrade head
+
+# Start server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Frontend
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+#### ML Models
+
+```bash
+# Set Python path
+export PYTHONPATH=$PYTHONPATH:$(pwd)
+
+# Collect historical data
+python3 ml/datasets/data_collector.py
+
+# Train models
+python3 ml/training/train_xgboost.py
+python3 ml/training/train_lstm.py
+python3 ml/training/train_prophet.py
+python3 ml/training/train_ensemble.py
+```
+
+---
+
+## API Endpoints
+
+### Public Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/health/` | Health check |
+| GET | `/api/v1/stock/search?q={query}` | Search stocks |
+| POST | `/api/v1/stock/extract` | Extract ticker from URL |
+| POST | `/api/v1/stock/analyze?ticker={ticker}` | Analyze stock |
+| GET | `/api/v1/stock/{ticker}/historical` | Get historical data |
+
+### Protected Endpoints (Require JWT)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/prediction/{ticker}` | Get ML predictions |
+| GET | `/api/v1/report/{ticker}` | Get AI report |
+| POST | `/api/v1/report/{ticker}` | Generate AI report |
+| GET | `/api/v1/sentiment/{ticker}` | Get sentiment analysis |
+| GET | `/api/v1/portfolio/` | Get portfolio |
+| POST | `/api/v1/portfolio/add` | Add to portfolio |
+| DELETE | `/api/v1/portfolio/remove` | Remove from portfolio |
+| GET | `/api/v1/watchlist/` | Get watchlist |
+| POST | `/api/v1/watchlist/add` | Add to watchlist |
+| DELETE | `/api/v1/watchlist/remove` | Remove from watchlist |
+
+---
+
+## ML Pipeline
+
+### Models
+
+1. **XGBoost**: Gradient boosting for classification (Bullish/Neutral/Bearish)
+2. **LSTM**: Deep learning for time series prediction
+3. **Prophet**: Facebook's time series forecasting
+4. **Ensemble**: Meta-model combining all three using stacking
+
+### Training
+
+```bash
+# Collect 5 years of historical data for 10 major tickers
+python3 ml/datasets/data_collector.py
+
+# Train individual models
+python3 ml/training/train_xgboost.py
+python3 ml/training/train_lstm.py
+python3 ml/training/train_prophet.py
+
+# Train ensemble meta-model (uses out-of-fold predictions)
+python3 ml/training/train_ensemble.py
+```
+
+### Features
+
+- Technical indicators: RSI, MACD, SMA, EMA, ATR, VWAP, ADX, Bollinger Bands
+- Price data: OHLCV with multiple timeframes
+- Fundamentals: P/E ratio, EPS, Revenue Growth, ROE, Debt/Equity
+- Sentiment: News and social media analysis (placeholder)
+
+---
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `GROQ_API_KEY` | Groq API key for AI reports | Yes |
+| `NEWS_API_KEY` | News API for sentiment analysis | Yes |
+| `FINNHUB_API_KEY` | Finnhub API for market data | Yes |
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `REDIS_URL` | Redis connection string | Yes |
+| `JWT_SECRET` | Secret for JWT token signing | Yes |
+| `POSTGRES_USER` | PostgreSQL username | Yes |
+| `POSTGRES_PASSWORD` | PostgreSQL password | Yes |
+| `POSTGRES_DB` | PostgreSQL database name | Yes |
+
+---
+
+## Security Features
+
+- ✅ JWT authentication on protected endpoints
+- ✅ Password hashing with bcrypt
+- ✅ Rate limiting with SlowAPI
+- ✅ CORS configuration
+- ✅ Non-root Docker containers
+- ✅ TLS/SSL ready (Nginx)
+- ✅ Security headers (HSTS, CSP, X-Frame-Options)
+- ✅ Environment variable validation on startup
+- ✅ Structured logging with Loguru
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Author
+
+**Denzil Josteve Fernandes**
+
+- 📧 Email: [denziljosteve@gmail.com](mailto:denziljosteve@gmail.com)
+- 💼 LinkedIn: [linkedin.com/in/denziljosteve](https://www.linkedin.com/in/denziljosteve)
+- 🐙 GitHub: [github.com/denziljosteve](https://github.com/denziljosteve)
+
+---
+
+## Acknowledgments
+
+- [Groq](https://groq.com/) for AI API
+- [Yahoo Finance](https://finance.yahoo.com/) for market data
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
+- [Next.js](https://nextjs.org/) for the frontend framework
+- [Tailwind CSS](https://tailwindcss.com/) for styling
+
+---
+
+**Built with by Denzil Josteve Fernandes**

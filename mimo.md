@@ -561,3 +561,13 @@ POSTGRES_DB=stockjedi
 **Document Purpose:** This file provides complete context for future sessions working on stockJEDI. It captures what was done, what's working, what needs work, and how to continue development.
 
 **How to Use:** Copy this file to future sessions or reference it when starting new work on stockJEDI. It should be the first thing read to understand the project state.
+
+---
+
+## Author
+
+**Denzil Josteve Fernandes**
+
+- 📧 Email: [denziljosteve@gmail.com](mailto:denziljosteve@gmail.com)
+- 💼 LinkedIn: [linkedin.com/in/denziljosteve](https://www.linkedin.com/in/denziljosteve)
+- 🐙 GitHub: [github.com/denziljosteve](https://github.com/denziljosteve)

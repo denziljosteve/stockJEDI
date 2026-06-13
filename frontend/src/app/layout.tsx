@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "./Providers";
 import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "stockJEDI",
@@ -15,12 +16,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-gray-50 text-gray-900">
+      <body className="antialiased bg-gray-50 text-gray-900 flex flex-col min-h-screen">
         <Providers>
           <Navbar />
-          <main className="min-h-screen container mx-auto px-4 py-8">
+          <main className="flex-grow container mx-auto px-4 py-8">
             {children}
           </main>
+          <Footer />
         </Providers>
       </body>
     </html>

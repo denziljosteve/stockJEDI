@@ -965,3 +965,13 @@ Ask MiMoCode: "Revert jwt_handler.py to use datetime.utcnow() instead of datetim
 3. **To understand impact:** Review the "Changes" section for each fix
 
 **Note:** All changes maintain backward compatibility with existing functionality. Reverting changes should restore original behavior without breaking other fixes.
+
+---
+
+## Author
+
+**Denzil Josteve Fernandes**
+
+- 📧 Email: [denziljosteve@gmail.com](mailto:denziljosteve@gmail.com)
+- 💼 LinkedIn: [linkedin.com/in/denziljosteve](https://www.linkedin.com/in/denziljosteve)
+- 🐙 GitHub: [github.com/denziljosteve](https://github.com/denziljosteve)
