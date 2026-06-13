@@ -127,9 +127,110 @@ docker-compose up --build
 
 ## Development Setup
 
-### Manual Setup (Without Docker)
+### Option 1: Docker Setup (Recommended)
 
-#### Backend
+The easiest way to run the full project is with Docker Compose. This sets up all services automatically.
+
+#### Prerequisites
+
+- Docker and Docker Compose installed
+- Groq API Key
+
+#### Quick Start with Docker
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/denziljosteve/stockJEDI.git
+cd stockJEDI
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env and add your GROQ_API_KEY
+
+# 3. Start all services (Backend, Frontend, PostgreSQL, Redis)
+docker-compose up --build
+
+# 4. Access the application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+#### Docker Development Mode
+
+For development with hot-reload and debugging:
+
+```bash
+# Start with development overrides (hot-reload, debug ports)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+# Or run in background
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+#### Docker Services Included
+
+| Service | Port | Description |
+|---------|------|-------------|
+| **backend** | 8000 | FastAPI application |
+| **frontend** | 3000 | Next.js application |
+| **db** | 5432 | PostgreSQL database |
+| **redis** | 6379 | Redis cache |
+| **migrate** | - | Database migrations (runs once) |
+
+#### Docker Commands Reference
+
+```bash
+# Start all services
+docker-compose up --build
+
+# Start in background
+docker-compose up --build -d
+
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (fresh start)
+docker-compose down -v
+
+# View logs for specific service
+docker-compose logs backend
+docker-compose logs frontend
+
+# Rebuild specific service
+docker-compose build backend
+
+# Run database migrations manually
+docker-compose run --rm migrate alembic upgrade head
+
+# Access backend container shell
+docker-compose exec backend bash
+
+# Access database
+docker-compose exec db psql -U user -d stockjedi
+```
+
+---
+
+### Option 2: Manual Setup (Without Docker)
+
+If you prefer to run services manually or don't have Docker installed.
+
+#### Prerequisites
+
+- Python 3.12
+- Node.js 20+
+- PostgreSQL 15
+- Redis 7
+- Groq API Key
+
+#### Backend Setup
 
 ```bash
 # Create virtual environment
@@ -140,14 +241,17 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run migrations
+# Configure environment variables
+# Make sure DATABASE_URL, REDIS_URL, JWT_SECRET are set in .env
+
+# Run database migrations
 alembic upgrade head
 
 # Start server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Frontend
+#### Frontend Setup
 
 ```bash
 cd frontend
@@ -157,22 +261,68 @@ npm install
 
 # Start development server
 npm run dev
+# Access at http://localhost:3000
 ```
 
-#### ML Models
+#### ML Models Setup
 
 ```bash
-# Set Python path
+# Set Python path (from project root)
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 
-# Collect historical data
+# Collect historical data (5 years for 10 tickers)
 python3 ml/datasets/data_collector.py
 
-# Train models
+# Train models (in order)
 python3 ml/training/train_xgboost.py
 python3 ml/training/train_lstm.py
 python3 ml/training/train_prophet.py
 python3 ml/training/train_ensemble.py
+
+# Verify models exist
+ls -la ml/saved_models/
+# Should contain: xgboost.pkl, lstm.h5, prophet.pkl, ensemble.pkl
+```
+
+#### Database Setup (Manual)
+
+```bash
+# Create PostgreSQL database
+createdb stockjedi
+
+# Or with Docker just the database
+docker run -d --name stock-db \
+  -p 5432:5432 \
+  -e POSTGRES_USER=user \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=stockjedi \
+  postgres:15-alpine
+
+# Create Redis instance
+docker run -d --name stock-redis \
+  -p 6379:6379 \
+  redis:7-alpine
+```
+
+---
+
+### Option 3: Hybrid Setup
+
+Run databases with Docker, application manually:
+
+```bash
+# Start only databases
+docker-compose up -d db redis
+
+# Run backend manually
+cd backend
+source venv/bin/activate
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+# Run frontend manually
+cd frontend
+npm run dev
 ```
 
 ---
