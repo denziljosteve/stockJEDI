@@ -16,25 +16,37 @@ class FeaturePipeline:
             
         df = historical_df.copy()
         
-        # In a real implementation, we would calculate all these features based on historical_df
-        # For now, we extract available indicators from market_data if we only need a single row
-        # If we need a historical dataset to train, we'd apply TA lib across historical_df
-        
-        # Dummy mock features for demonstration
-        df['RSI'] = np.random.uniform(30, 70, size=len(df))
-        df['MACD'] = np.random.normal(0, 1, size=len(df))
-        df['MA50'] = df['Close'].rolling(window=50).mean()
-        df['MA200'] = df['Close'].rolling(window=200).mean()
-        
+        from ta.momentum import RSIIndicator
+        from ta.trend import MACD, SMAIndicator
+        from ta.volatility import AverageTrueRange
+
+        df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi()
+        macd_obj = MACD(close=df['Close'])
+        df['MACD'] = macd_obj.macd()
+        df['MA20'] = SMAIndicator(close=df['Close'], window=20).sma_indicator()
+        df['MA50'] = SMAIndicator(close=df['Close'], window=50).sma_indicator()
+        df['MA100'] = SMAIndicator(close=df['Close'], window=100).sma_indicator()
+        df['MA200'] = SMAIndicator(close=df['Close'], window=200).sma_indicator()
+        df['ATR'] = AverageTrueRange(high=df['High'], low=df['Low'], close=df['Close'], window=14).average_true_range()
+
+        typical_price = (df['High'] + df['Low'] + df['Close']) / 3
+        df['VWAP'] = (typical_price * df['Volume']).rolling(20).sum() / df['Volume'].rolling(20).sum()
+
+        from ta.trend import ADXIndicator
+        df['ADX'] = ADXIndicator(high=df['High'], low=df['Low'], close=df['Close'], window=14).adx()
+
         # Financial Features
         info = market_data.get('info', {})
         df['PE'] = info.get('pe_ratio', 15.0)
         df['EPS'] = info.get('eps', 5.0)
-        df['Market_Cap'] = info.get('market_cap', 1e10)
-        
-        # Sentiment Features
-        sentiment = market_data.get('sentiment', {})
-        df['Sentiment_Score'] = sentiment.get('overall_sentiment', 0.0)
+        df['Revenue_growth'] = info.get('revenue_growth', 0.05)
+        df['ROE'] = info.get('return_on_equity', 0.1)
+        df['Debt_Equity'] = info.get('debt_to_equity', 50.0)
+
+        # Sentiment features - neutral defaults matching data_collector.py schema
+        df['News_sentiment'] = 0.0
+        df['Reddit_sentiment'] = 0.0
+        df['Analyst_sentiment'] = 0.0
         
         # Target variable (e.g. 1 week future return)
         df['Target_1w'] = df['Close'].shift(-5) / df['Close'] - 1.0

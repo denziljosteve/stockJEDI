@@ -32,7 +32,9 @@ def test_feature_pipeline():
     assert not features_df.empty
     assert "PE" in features_df.columns
     assert "RSI" in features_df.columns
-    assert "Sentiment_Score" in features_df.columns
+    assert "News_sentiment" in features_df.columns
+    assert "Reddit_sentiment" in features_df.columns
+    assert "Analyst_sentiment" in features_df.columns
 
 def test_ensemble_model():
     dummy_features = np.random.rand(1, 15)

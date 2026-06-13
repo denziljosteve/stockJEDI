@@ -7,7 +7,7 @@ try:
 except ImportError:
     print("XGBoost not found. Falling back to GradientBoostingClassifier.")
     from sklearn.ensemble import GradientBoostingClassifier as XGBClassifier
-from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
+from sklearn.model_selection import GroupKFold, TimeSeriesSplit
 from sklearn.metrics import classification_report, accuracy_score
 
 def train_xgboost():
@@ -22,8 +22,9 @@ def train_xgboost():
         df['Date'] = pd.to_datetime(df['Date'])
         df = df.set_index('Date')
     elif df.index.name == 'Date' or isinstance(df.index, pd.DatetimeIndex) or len(str(df.index[0])) > 8:
-        # It's likely already a datetime index
         pass
+
+    df = df.sort_index()
 
     # Drop target columns from features
     feature_cols = [c for c in df.columns if c not in [
@@ -32,13 +33,10 @@ def train_xgboost():
     ]]
     
     # Target label mapping: -1 -> 0, 0 -> 1, 1 -> 2
-    # So 0=Bearish, 1=Neutral, 2=Bullish
     X = df[feature_cols].copy()
     y = df['Target_1w_label'].map({-1: 0, 0: 1, 1: 2})
+    groups = df['Ticker']
 
-    # Basic time series split
-    tscv = TimeSeriesSplit(n_splits=3)
-    
     try:
         import xgboost
         xgb = XGBClassifier(objective='multi:softprob', num_class=3, eval_metric='mlogloss', random_state=42)
@@ -57,16 +55,32 @@ def train_xgboost():
             'subsample': [0.8, 1.0]
         }
 
-    
-    print("Running RandomizedSearchCV...")
-    search = RandomizedSearchCV(xgb, param_distributions=param_grid, n_iter=5, cv=tscv, scoring='accuracy', n_jobs=-1, random_state=42)
-    search.fit(X, y)
-    
-    best_model = search.best_estimator_
-    print(f"Best parameters: {search.best_params_}")
-    
+    # GroupKFold by ticker prevents any sample from a ticker appearing
+    # in both train and validation, eliminating cross-ticker leakage.
+    gkf = GroupKFold(n_splits=5)
+
+    print("Running GroupKFold cross-validation by ticker...")
+    scores = []
+    for fold, (train_idx, val_idx) in enumerate(gkf.split(X, y, groups)):
+        X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
+        y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+
+        xgb_clone = XGBClassifier(**xgb.get_params())
+        xgb_clone.fit(X_train, y_train)
+        y_pred = xgb_clone.predict(X_val)
+        score = accuracy_score(y_val, y_pred)
+        scores.append(score)
+        val_tickers = groups.iloc[val_idx].unique().tolist()
+        print(f"  Fold {fold+1} (val tickers: {val_tickers}): accuracy={score:.4f}")
+
+    print(f"Mean CV Accuracy: {np.mean(scores):.4f} (+/- {np.std(scores):.4f})")
+
+    # Final fit on all data for production model
+    xgb_final = XGBClassifier(**xgb.get_params())
+    xgb_final.fit(X, y)
+
     # Feature importance
-    importances = best_model.feature_importances_
+    importances = xgb_final.feature_importances_
     feat_imp = pd.Series(importances, index=feature_cols).sort_values(ascending=False)
     print("Top 5 Feature Importances:")
     print(feat_imp.head(5))
@@ -74,14 +88,14 @@ def train_xgboost():
     # Save the model
     os.makedirs("ml/saved_models", exist_ok=True)
     model_path = "ml/saved_models/xgboost.pkl"
-    joblib.dump(best_model, model_path)
+    joblib.dump(xgb_final, model_path)
     print(f"Model saved to {model_path}")
     
-    # Quick eval on last 20% of data
+    # Time-based holdout eval: last 20% of chronological data
     split_idx = int(len(X) * 0.8)
     X_test, y_test = X.iloc[split_idx:], y.iloc[split_idx:]
-    y_pred = best_model.predict(X_test)
-    print("Test Accuracy:", accuracy_score(y_test, y_pred))
+    y_pred = xgb_final.predict(X_test)
+    print("Time-based Holdout Accuracy:", accuracy_score(y_test, y_pred))
 
 if __name__ == "__main__":
     train_xgboost()

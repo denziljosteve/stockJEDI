@@ -23,14 +23,14 @@ export const stockService = {
 
 export const predictionService = {
   getPrediction: async (ticker: string): Promise<PredictionResult> => {
-    const response = await apiClient.post(`/prediction/${ticker}`);
+    const response = await apiClient.get(`/prediction/${ticker}`);
     return response.data;
   },
 };
 
 export const sentimentService = {
   getSentiment: async (ticker: string): Promise<{ sentiment: SentimentResult }> => {
-    const response = await apiClient.post(`/sentiment/${ticker}`);
+    const response = await apiClient.get(`/sentiment/${ticker}`);
     return response.data;
   },
 };

@@ -2,29 +2,54 @@ import sys
 import os
 import numpy as np
 from typing import Dict, Any, List
+from loguru import logger
 
 # Ensure the ml package is discoverable
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 from ml.models.ensemble_model import ensemble_model
 
 class PredictionService:
+    _models_loaded = False
+    _model_cache = {
+        'xgb': None,
+        'lstm': None,
+        'prophet': None,
+        'meta': None
+    }
+
+    @classmethod
+    def _ensure_models_loaded(cls):
+        if not cls._models_loaded:
+            try:
+                ensemble_model.xgb.load_model()
+                ensemble_model.lstm.load_model()
+                ensemble_model.prophet.load_model()
+                ensemble_model.load_meta_model()
+                cls._models_loaded = True
+                logger.info("Prediction models loaded successfully")
+            except Exception as e:
+                logger.error(f"Error loading prediction models: {e}")
+                raise
+
+    @classmethod
+    def refresh_models(cls):
+        cls._models_loaded = False
+        cls._ensure_models_loaded()
+
     @staticmethod
     def get_predictions(ticker: str, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Generate probability-based predictions for multiple horizons.
         """
-        # Create a single row DataFrame matching training features
-        # We need Open, High, Low, Close, Volume, RSI, MACD, MA20, MA50, MA100, MA200, ATR, VWAP, ADX, PE, EPS, Revenue_growth, ROE, Debt_Equity, News_sentiment, Reddit_sentiment, Analyst_sentiment
-        
+        PredictionService._ensure_models_loaded()
+
         info = market_data.get('info', {})
         inds = market_data.get('indicators', {})
-        
-        # Real sentiment is not passed in market_data directly by default (it's fetched separately in report).
-        # We'll default to 0 if missing.
+
         sentiment_score = 0.0
-        
+
         current_price = info.get('current_price', 0.0)
-        
+
         feature_dict = {
             'Open': info.get('open', current_price),
             'High': info.get('high', current_price),
@@ -49,30 +74,22 @@ class PredictionService:
             'Reddit_sentiment': 0.0,
             'Analyst_sentiment': 0.0
         }
-        
+
         import pandas as pd
         features_df = pd.DataFrame([feature_dict])
-        
-        # Reload models dynamically to ensure they are fresh if just trained
-        ensemble_model.xgb.load_model()
-        ensemble_model.lstm.load_model()
-        ensemble_model.prophet.load_model()
-        ensemble_model.load_meta_model()
-        
+
         pred_1d = ensemble_model.predict_probabilities(features_df, horizon_days=1, current_price=current_price, sentiment_score=sentiment_score)
         pred_1w = ensemble_model.predict_probabilities(features_df, horizon_days=7, current_price=current_price, sentiment_score=sentiment_score)
         pred_1m = ensemble_model.predict_probabilities(features_df, horizon_days=30, current_price=current_price, sentiment_score=sentiment_score)
-        
-        # Calculate confidence based on data completeness and signal strength
+
         confidence = "Medium"
         if pred_1w['bullish'] > 65 or pred_1w['bearish'] > 65:
             confidence = "High"
         elif 40 < pred_1w['bullish'] < 60 and 40 < pred_1w['bearish'] < 60:
             confidence = "Low"
 
-        # Generate explainable signals
         signals = PredictionService._generate_signals(market_data, pred_1w)
-            
+
         return {
             "ticker": ticker,
             "1_day": pred_1d,
@@ -86,23 +103,23 @@ class PredictionService:
     def _generate_signals(market_data: Dict[str, Any], pred: Dict[str, float]) -> List[str]:
         signals = []
         indicators = market_data.get('indicators', {})
-        
+
         if indicators.get('trend') == 'Bullish':
             signals.append("Moving averages indicate a strong uptrend.")
         elif indicators.get('trend') == 'Bearish':
             signals.append("Moving averages indicate a strong downtrend.")
-            
+
         rsi = indicators.get('rsi', 50)
         if rsi > 70:
             signals.append("RSI suggests the asset is currently overbought.")
         elif rsi < 30:
             signals.append("RSI suggests the asset is currently oversold.")
-            
+
         if pred['bullish'] > pred['bearish']:
             signals.append("Ensemble model leans bullish based on combined feature analysis.")
         else:
             signals.append("Ensemble model leans bearish based on combined feature analysis.")
-            
+
         return signals
 
 prediction_service = PredictionService()

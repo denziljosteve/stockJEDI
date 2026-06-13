@@ -52,21 +52,27 @@ class LSTMModel:
 
 class ProphetModel:
     def __init__(self):
-        self.model = None
+        self.models = {}
         self.load_model()
         
     def load_model(self):
         try:
-            self.model = joblib.load("ml/saved_models/prophet.pkl")
+            loaded = joblib.load("ml/saved_models/prophet.pkl")
+            if isinstance(loaded, dict):
+                self.models = loaded
+            else:
+                # Backward compat: single model treated as AAPL fallback
+                self.models = {'AAPL': loaded}
         except:
-            self.model = None
+            self.models = {}
 
-    def predict_trend(self, current_price: float, days: int) -> float:
-        if self.model is None:
+    def predict_trend(self, current_price: float, days: int, ticker: str = 'AAPL') -> float:
+        model = self.models.get(ticker, self.models.get('AAPL'))
+        if model is None:
             return 0.0
         
-        future = self.model.make_future_dataframe(periods=days)
-        forecast = self.model.predict(future)
+        future = model.make_future_dataframe(periods=days)
+        forecast = model.predict(future)
         pred_price = forecast['yhat'].iloc[-1]
         
         return (pred_price - current_price) / current_price
@@ -85,13 +91,11 @@ class EnsembleModel:
         except:
             self.meta_model = None
         
-    def predict_probabilities(self, features: pd.DataFrame, horizon_days: int, current_price: float, sentiment_score: float) -> Dict[str, float]:
+    def predict_probabilities(self, features: pd.DataFrame, horizon_days: int, current_price: float,
+                               sentiment_score: float = 0.0, ticker: str = 'AAPL') -> Dict[str, float]:
         """
         Returns a probability distribution for Bullish, Bearish, and Neutral movements.
         """
-        # Ensure correct column order for XGB and LSTM based on training
-        # We assume `features` is a DataFrame with the correct columns from the pipeline.
-        
         # 1. XGBoost Predict (0=Bearish, 1=Neutral, 2=Bullish)
         xgb_probs = self.xgb.predict_proba(features)[0]
         xgb_bear = xgb_probs[0]
@@ -102,7 +106,7 @@ class EnsembleModel:
         lstm_bull = lstm_probs[2]
         
         # 3. Prophet Trend
-        prophet_trend = self.prophet.predict_trend(current_price, horizon_days)
+        prophet_trend = self.prophet.predict_trend(current_price, horizon_days, ticker=ticker)
         
         # 4. Use Meta Model if available
         if self.meta_model is not None:

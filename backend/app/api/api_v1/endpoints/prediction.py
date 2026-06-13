@@ -1,16 +1,16 @@
 from typing import Any
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from app.services.market.aggregator import MarketAggregator
 from app.services.prediction.prediction_service import prediction_service
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
-@router.post("/{ticker}", response_model=dict)
-async def get_prediction(ticker: str) -> Any:
+@router.get("/{ticker}", response_model=dict)
+async def get_prediction(ticker: str, current_user: dict = Depends(get_current_user)) -> Any:
     """
     Get probability-based movement prediction for a stock based on ensemble ML models.
     """
-    # 1. Fetch live market data to generate features
     market_data = await MarketAggregator.get_comprehensive_data(ticker)
     if "error" in market_data:
         raise HTTPException(
@@ -18,13 +18,12 @@ async def get_prediction(ticker: str) -> Any:
             detail=market_data["error"]
         )
 
-    # 2. Get predictions
     predictions = prediction_service.get_predictions(ticker, market_data)
     
     return predictions
 
 @router.get("/model/metrics", response_model=dict)
-def get_model_metrics() -> Any:
+def get_model_metrics(current_user: dict = Depends(get_current_user)) -> Any:
     """
     Get latest model evaluation metrics (Accuracy, F1, ROC-AUC, etc.)
     """

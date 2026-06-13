@@ -1,3 +1,5 @@
+import asyncio
+from functools import partial
 from groq import Groq
 from app.core.config import settings
 from loguru import logger
@@ -9,14 +11,19 @@ class GroqClient:
 
     async def generate_completion(self, prompt: str, system_prompt: str = "") -> str:
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=2048
+            loop = asyncio.get_event_loop()
+            completion = await loop.run_in_executor(
+                None,
+                partial(
+                    self.client.chat.completions.create,
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=2048
+                )
             )
             return completion.choices[0].message.content
         except Exception as e:

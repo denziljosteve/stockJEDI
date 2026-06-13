@@ -48,10 +48,13 @@ def get_historical_data(ticker, period="5y"):
         df['ROE'] = 0.1
         df['Debt_Equity'] = 50.0
 
-    # Mock Sentiment features
-    df['News_sentiment'] = np.random.uniform(-50, 50, len(df))
-    df['Reddit_sentiment'] = np.random.uniform(-50, 50, len(df))
-    df['Analyst_sentiment'] = np.random.uniform(-50, 50, len(df))
+    # Sentiment features: placeholder columns with neutral defaults.
+    # Random noise was removed to prevent training on meaningless correlations.
+    # Replace with real sentiment data (e.g., FinBERT, VADER, or an external API)
+    # when a sentiment source is integrated.
+    df['News_sentiment'] = 0.0
+    df['Reddit_sentiment'] = 0.0
+    df['Analyst_sentiment'] = 0.0
     
     # Target Variables (Future Returns)
     df['Return_1d'] = df['Close'].shift(-1) / df['Close'] - 1

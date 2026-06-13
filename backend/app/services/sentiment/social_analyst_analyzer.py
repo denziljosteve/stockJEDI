@@ -1,8 +1,10 @@
 import yfinance as yf
-import pandas as pd
 from typing import List
 from datetime import datetime
+from loguru import logger
+
 from app.services.sentiment.sentiment_engine import SentimentEntry, sentiment_engine
+
 
 class RedditAnalyzer:
     @staticmethod
@@ -21,6 +23,7 @@ class RedditAnalyzer:
             sentiment_label=analysis["label"]
         ))
         return entries
+
 
 class AnalystAnalyzer:
     @staticmethod
@@ -50,6 +53,6 @@ class AnalystAnalyzer:
                         sentiment_label=analysis["label"]
                     ))
         except Exception as e:
-            print(f"Error fetching analyst ratings for {ticker}: {e}")
+            logger.error(f"Error fetching analyst ratings for {ticker}: {e}")
             
         return entries

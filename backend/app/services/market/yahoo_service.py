@@ -1,15 +1,21 @@
 import yfinance as yf
 import pandas as pd
 from typing import Optional, Dict, Any
+from loguru import logger
 from app.schemas.market_data import MarketData, HistoricalPoint
 
 class YahooFinanceService:
+    REQUEST_TIMEOUT = 30
+
     @staticmethod
     def get_stock_info(ticker: str) -> Optional[MarketData]:
         try:
             stock = yf.Ticker(ticker)
             info = stock.info
-            
+
+            if not info or info.get('trailingPegRatio') is None:
+                logger.warning(f"No data returned for ticker {ticker}")
+
             return MarketData(
                 ticker=ticker,
                 company_name=info.get("longName"),
@@ -29,8 +35,14 @@ class YahooFinanceService:
                 sector=info.get("sector"),
                 industry=info.get("industry")
             )
+        except ConnectionError as e:
+            logger.error(f"Network error fetching Yahoo Finance data for {ticker}: {e}")
+            return None
+        except TimeoutError as e:
+            logger.error(f"Timeout fetching Yahoo Finance data for {ticker}: {e}")
+            return None
         except Exception as e:
-            print(f"Error fetching Yahoo Finance data for {ticker}: {e}")
+            logger.error(f"Error fetching Yahoo Finance data for {ticker}: {e}")
             return None
 
     @staticmethod
@@ -41,7 +53,15 @@ class YahooFinanceService:
         try:
             stock = yf.Ticker(ticker)
             df = stock.history(period=period)
+            if df.empty:
+                logger.warning(f"No historical data returned for {ticker}")
             return df
+        except ConnectionError as e:
+            logger.error(f"Network error fetching historical data for {ticker}: {e}")
+            return pd.DataFrame()
+        except TimeoutError as e:
+            logger.error(f"Timeout fetching historical data for {ticker}: {e}")
+            return pd.DataFrame()
         except Exception as e:
-            print(f"Error fetching historical data for {ticker}: {e}")
+            logger.error(f"Error fetching historical data for {ticker}: {e}")
             return pd.DataFrame()

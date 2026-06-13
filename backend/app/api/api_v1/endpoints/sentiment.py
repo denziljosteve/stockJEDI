@@ -1,13 +1,14 @@
 from typing import Any
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from app.services.sentiment.news_analyzer import NewsAnalyzer
 from app.services.sentiment.social_analyst_analyzer import RedditAnalyzer, AnalystAnalyzer
 from app.services.sentiment.sentiment_engine import sentiment_engine
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
-@router.post("/{ticker}", response_model=dict)
-async def get_stock_sentiment(ticker: str) -> Any:
+@router.get("/{ticker}", response_model=dict)
+async def get_stock_sentiment(ticker: str, current_user: dict = Depends(get_current_user)) -> Any:
     """
     Get aggregated sentiment for a stock from news and social media.
     """

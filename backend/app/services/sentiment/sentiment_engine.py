@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from pydantic import BaseModel
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from textblob import TextBlob
+
 
 class SentimentResult(BaseModel):
     positive_score: float
@@ -11,6 +11,7 @@ class SentimentResult(BaseModel):
     confidence: float
     summary: str
 
+
 class SentimentEntry(BaseModel):
     source: str
     title: str
@@ -18,6 +19,7 @@ class SentimentEntry(BaseModel):
     published_at: str
     sentiment_score: float
     sentiment_label: str
+
 
 class SentimentEngine:
     def __init__(self):

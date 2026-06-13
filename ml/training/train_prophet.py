@@ -3,6 +3,7 @@ import pandas as pd
 import joblib
 from prophet import Prophet
 from sklearn.metrics import mean_absolute_error
+import warnings
 
 def train_prophet():
     print("Loading historical data for Prophet...")
@@ -12,42 +13,53 @@ def train_prophet():
         return
 
     df = pd.read_csv(data_path)
-    
-    # Prophet requires 'ds' (datetime) and 'y' (target)
-    # We will train one generalized model or one per ticker.
-    # To keep it simple for the ensemble, we will train a single Prophet model
-    # on the most recent data of a representative stock (e.g., AAPL) or just
-    # save a template model. Prophet is usually per-ticker.
-    # We will train a Prophet model for AAPL and save it as a representative, 
-    # but in reality, prediction service should instantiate and predict per-ticker on the fly.
-    # Since we need to save a model, we'll fit on the combined dataset's average or just AAPL.
-    
-    aapl_df = df[df['Ticker'] == 'AAPL'].copy()
-    if 'Date' in aapl_df.columns:
-        aapl_df['ds'] = pd.to_datetime(aapl_df['Date'], utc=True).dt.tz_localize(None)
-    else:
-        aapl_df['ds'] = pd.to_datetime(aapl_df.index, utc=True).dt.tz_localize(None)
-        
-    aapl_df['y'] = aapl_df['Close']
-    
-    aapl_df = aapl_df[['ds', 'y']].sort_values('ds')
-    
-    split = int(len(aapl_df) * 0.8)
-    train, test = aapl_df.iloc[:split], aapl_df.iloc[split:]
-    
-    model = Prophet(daily_seasonality=True)
-    model.fit(train)
-    
-    # Eval
-    future = model.make_future_dataframe(periods=len(test))
-    forecast = model.predict(future)
-    y_pred = forecast['yhat'].iloc[split:]
-    mae = mean_absolute_error(test['y'], y_pred)
-    print(f"Prophet MAE on AAPL test set: {mae:.2f}")
-    
+
+    tickers = df['Ticker'].unique()
+    print(f"Prophet: training on {len(tickers)} tickers: {', '.join(tickers)}")
+
+    models = {}
+    for ticker in tickers:
+        tdf = df[df['Ticker'] == ticker].copy()
+        if 'Date' in tdf.columns:
+            tdf['ds'] = pd.to_datetime(tdf['Date'], utc=True).dt.tz_localize(None)
+        else:
+            tdf['ds'] = pd.to_datetime(tdf.index, utc=True).dt.tz_localize(None)
+
+        tdf['y'] = tdf['Close']
+        tdf = tdf[['ds', 'y']].sort_values('ds')
+
+        if len(tdf) < 50:
+            print(f"  Skipping {ticker}: insufficient data ({len(tdf)} rows)")
+            continue
+
+        split = int(len(tdf) * 0.8)
+        train, test = tdf.iloc[:split], tdf.iloc[split:]
+
+        model = Prophet(daily_seasonality=True)
+        model.fit(train)
+
+        future = model.make_future_dataframe(periods=len(test))
+        forecast = model.predict(future)
+        y_pred = forecast['yhat'].iloc[split:]
+        mae = mean_absolute_error(test['y'], y_pred)
+        print(f"  {ticker} MAE on test set: {mae:.2f}")
+
+        models[ticker] = model
+
+    if not models:
+        print("WARNING: No Prophet models were trained. All tickers had insufficient data.")
+        return
+
+    if len(models) < len(tickers):
+        warnings.warn(
+            f"Prophet was only trained on {len(models)}/{len(tickers)} tickers. "
+            f"Ensemble predictions for untrained tickers will fall back to the default."
+        )
+
+    os.makedirs("ml/saved_models", exist_ok=True)
     model_path = "ml/saved_models/prophet.pkl"
-    joblib.dump(model, model_path)
-    print(f"Model saved to {model_path}")
+    joblib.dump(models, model_path)
+    print(f"Models saved to {model_path}")
 
 if __name__ == "__main__":
     train_prophet()

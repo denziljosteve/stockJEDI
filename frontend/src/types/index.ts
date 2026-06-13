@@ -7,6 +7,7 @@ export interface MarketData {
   pe_ratio: number;
   eps: number;
   sector: string;
+  exchange: string;
 }
 
 export interface TechnicalIndicators {

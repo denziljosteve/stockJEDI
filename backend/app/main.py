@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -12,9 +14,29 @@ from app.middleware.rate_limit import setup_rate_limit
 from app.monitoring.metrics import PrometheusMiddleware
 from app.core.config_validator import validate_config
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    validate_config()
+    logger.info("Starting up stockJEDI backend...")
+    try:
+        from app.services.prediction.prediction_service import PredictionService
+        PredictionService._ensure_models_loaded()
+        logger.info("Prediction models preloaded at startup")
+    except Exception as e:
+        logger.warning(f"Could not preload prediction models: {e}")
+
+    yield
+
+    logger.info("Shutting down stockJEDI backend...")
+    from app.services.cache_service import cache_service
+    await cache_service.close()
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan,
 )
 
 # Rate Limiter
@@ -43,13 +65,3 @@ app.add_middleware(LoggingMiddleware)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(websocket_router, tags=["websockets"])
-
-@app.on_event("startup")
-async def startup_event():
-    # Validate environment variables before starting
-    validate_config()
-    logger.info("Starting up stockJEDI backend...")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down stockJEDI backend...")
