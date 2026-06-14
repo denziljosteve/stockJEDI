@@ -30,8 +30,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build Backend Docker Image
-      run: docker build -f backend/Dockerfile -t stockjedi-backend ./backend
+      run: docker build -t stockjedi-backend .
+      working-directory: backend
     - name: Build Frontend Docker Image
-      run: docker build -f frontend/Dockerfile -t stockjedi-frontend ./frontend
+      run: docker build -t stockjedi-frontend .
+      working-directory: frontend
     # Placeholder for pushing to a registry and applying kubernetes configs
     # run: kubectl apply -f deployment/kubernetes.yaml
