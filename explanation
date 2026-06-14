@@ -1,0 +1,305 @@
+# stockJEDI - Project Explanation
+
+## What is stockJEDI?
+
+stockJEDI is an **AI-powered stock intelligence and investment analysis platform**. It takes a stock ticker symbol (or a URL from a financial website) and produces a full institutional-style investment report — complete with machine learning predictions, technical indicators, sentiment analysis, and an AI-written narrative report.
+
+---
+
+## High-Level Architecture
+
+The project is a **full-stack application** with three main components:
+
+1. **Frontend** — A Next.js (React) web dashboard where users interact with the system.
+2. **Backend** — A FastAPI (Python) REST API that orchestrates all analysis.
+3. **ML Pipeline** — A standalone machine learning training pipeline that produces prediction models used by the backend.
+
+These components communicate over HTTP/REST APIs, with Redis for caching and PostgreSQL for persistent storage.
+
+```
+User Browser
+    |
+    v
+[Frontend: Next.js :3000]
+    |  (HTTP REST)
+    v
+[Backend: FastAPI :8000]
+    |
+    +-----> [Yahoo Finance API]       (market data)
+    +-----> [News/Social APIs]         (sentiment data)
+    +-----> [Groq API: LLaMA 3.3 70B] (AI report generation)
+    +-----> [Redis]                    (caching)
+    +-----> [PostgreSQL]               (user data, watchlists, portfolios)
+    +-----> [ML Models on disk]        (XGBoost, LSTM, Prophet, Ensemble)
+```
+
+---
+
+## How a User Request Flows Through the System
+
+### Step 1: User Input
+The user visits the web dashboard and enters a stock ticker (e.g., "AAPL") or pastes a URL from Yahoo Finance, TradingView, MarketWatch, Screener.in, or other supported platforms.
+
+- If a URL is provided, the **URL Processor** (`backend/app/services/url_processor.py`) extracts the ticker symbol from the URL. It supports 8 financial platforms.
+- If a plain ticker is provided, it is used directly.
+
+### Step 2: Market Data Aggregation
+The backend's **Market Aggregator** (`backend/app/services/market/aggregator.py`) fetches data from Yahoo Finance via the **Yahoo Service** (`backend/app/services/market/yahoo_service.py`):
+
+- **Real-time data**: Current price, market cap, P/E ratio, EPS, dividend yield, 52-week high/low, volume, sector, industry.
+- **Historical data**: 5 years of daily OHLCV (Open, High, Low, Close, Volume) data.
+
+All fetched data is cached in **Redis** for 1 hour to avoid repeated API calls.
+
+### Step 3: Technical Indicator Calculation
+The **Technical Service** (`backend/app/services/market/technical_service.py`) computes 15+ technical indicators from the historical data:
+
+| Indicator | What It Measures |
+|---|---|
+| **RSI** (Relative Strength Index) | Overbought (>70) or oversold (<30) conditions |
+| **MACD** (Moving Average Convergence Divergence) | Trend direction and momentum |
+| **SMA / EMA** (Simple/Exponential Moving Averages) | Trend over different timeframes (20, 50, 200 days) |
+| **Bollinger Bands** | Volatility and price extremes |
+| **ATR** (Average True Range) | Volatility magnitude |
+| **VWAP** (Volume-Weighted Average Price) | Average price weighted by volume |
+| **ADX** (Average Directional Index) | Trend strength |
+| **StochRSI** (Stochastic RSI) | Momentum oscillator |
+| **Support / Resistance** | Key price levels |
+
+These indicators are returned as part of the market data response.
+
+### Step 4: Sentiment Analysis
+The **Sentiment Engine** (`backend/app/services/sentiment/sentiment_engine.py`) analyzes:
+
+- **News articles** (via `news_analyzer.py`) — fetches recent news headlines about the stock and scores them using **VADER** (Valence Aware Dictionary and sEntiment Reasoner), a rule-based sentiment analysis tool.
+- **Social media and analyst ratings** (via `social_analyst_analyzer.py`) — analyzes Reddit discussions and analyst consensus.
+
+The output is a sentiment breakdown: **Positive %**, **Neutral %**, **Negative %**, with an overall sentiment label (Bullish / Neutral / Bearish).
+
+### Step 5: Machine Learning Predictions
+The **Prediction Service** (`backend/app/services/prediction/prediction_service.py`) loads the pre-trained ensemble model from disk and generates predictions:
+
+The ensemble consists of **four models** that work together:
+
+1. **XGBoost** (`ml/saved_models/xgboost.pkl`) — A gradient boosting classifier trained on technical indicators and price features. It classifies the next price movement into Bullish, Neutral, or Bearish.
+
+2. **LSTM** (`ml/saved_models/lstm.h5`) — A Long Short-Term Memory neural network (built with TensorFlow) that processes sequences of 10 consecutive days of data to predict the next movement.
+
+3. **Prophet** (`ml/saved_models/prophet.pkl`) — Facebook's time series forecasting model, which captures seasonal and trend patterns in the price data.
+
+4. **Ensemble Meta-Model** (`ml/saved_models/ensemble.pkl`) — A **stacking meta-model** that takes the predictions from XGBoost, LSTM, and Prophet, along with sentiment data, and produces the final prediction. This is what makes the ensemble "smart" — it learns how to best combine the three base models.
+
+The prediction service generates probability distributions for:
+- **1-day ahead** prediction
+- **1-week ahead** prediction  
+- **1-month ahead** prediction
+
+Each prediction gives a Bullish/Neutral/Bearish percentage (e.g., "62% Bullish, 25% Neutral, 13% Bearish").
+
+### Step 6: Scoring and Recommendation
+The **Scoring Engine** (`backend/app/services/ai/scoring_engine.py`) computes a composite score using 5 weighted factors:
+
+| Factor | Weight | Data Source |
+|---|---|---|
+| **Fundamentals** | 35% | P/E ratio, EPS, market cap, dividend yield |
+| **Technical Analysis** | 25% | RSI, MACD, trend indicators, support/resistance |
+| **Sentiment** | 15% | News and social sentiment scores |
+| **Growth** | 15% | Revenue/earnings growth, historical performance |
+| **Risk** | 10% | Volatility (ATR), beta, drawdown |
+
+Based on the overall score, a recommendation is generated:
+
+| Score Range | Recommendation |
+|---|---|
+| 80-100 | **Strong Buy** |
+| 65-79 | **Buy** |
+| 45-64 | **Hold** |
+| 30-44 | **Sell** |
+| 0-29 | **Strong Sell** |
+
+A confidence level (High / Medium / Low) is also computed based on agreement between the sub-scores.
+
+### Step 7: AI Report Generation
+The **Report Generator** (`backend/app/services/ai/report_generator.py`) orchestrates everything:
+
+1. It collects all gathered data: market info, technical indicators, sentiment scores, ML predictions, and the scoring engine's recommendation.
+2. The **Prompt Builder** (`backend/app/services/ai/prompt_builder.py`) assembles this data into a structured prompt.
+3. The prompt is sent to the **Groq API** (`backend/app/services/ai/groq_client.py`), which runs **LLaMA 3.3 70B Versatile** — a large language model.
+4. The LLM generates a comprehensive, institutional-style investment report in Markdown format, covering:
+   - Executive summary
+   - Technical analysis overview
+   - Fundamental analysis
+   - Sentiment analysis
+   - ML prediction summary
+   - Risk assessment
+   - Investment recommendation
+
+### Step 8: Response to Frontend
+All the results — company info, recommendation card data, technical indicators, ML predictions, sentiment breakdown, and the AI report — are returned as a JSON response to the frontend.
+
+### Step 9: Dashboard Rendering
+The frontend's **Stock Page** (`frontend/src/app/stock/[ticker]/page.tsx`) renders everything in a dashboard:
+
+- **Header**: Company name, ticker, current price, daily change
+- **Recommendation Card**: Score gauge + Buy/Hold/Sell recommendation with confidence
+- **Technical Indicators**: Key indicators displayed in a summary view
+- **ML Predictions**: Probability bars for Bullish/Neutral/Bearish across 1-day, 1-week, 1-month
+- **Sentiment Analysis**: Visual breakdown of positive/neutral/negative sentiment
+- **AI Report**: Full Markdown report rendered with react-markdown
+
+---
+
+## Machine Learning Pipeline (Training)
+
+The ML models are trained separately (not at runtime) using the pipeline in the `ml/` directory:
+
+### 1. Data Collection (`ml/datasets/data_collector.py`)
+- Fetches 5 years of daily historical data for 10 major stocks: AAPL, MSFT, GOOGL, AMZN, TSLA, META, NVDA, JPM, V, JNJ
+- Computes technical indicators for each
+- Labels each day as Bullish (positive return), Neutral (<0.5% change), or Bearish (negative return)
+- Saves to `ml/datasets/training/historical_data.csv`
+
+### 2. Feature Engineering (`ml/features/feature_pipeline.py`)
+- Processes raw data into features suitable for ML: price ratios, rolling statistics, technical indicator values, volume changes, etc.
+
+### 3. Model Training
+- **XGBoost** (`ml/training/train_xgboost.py`): Multi-class classification with soft probability output
+- **LSTM** (`ml/training/train_lstm.py`): Recurrent neural network with TensorFlow, processes sequences of 10 days
+- **Prophet** (`ml/training/train_prophet.py`): Time series decomposition for trend/seasonality
+- **Ensemble** (`ml/training/train_ensemble.py`): Stacking meta-model that learns optimal combination of the base models
+
+### 4. Evaluation
+The ensemble achieves approximately:
+- **64% accuracy** on test data
+- **62% F1 score**
+- **0.68 ROC-AUC**
+
+These metrics are recorded in `ml/evaluation/model_metrics.json`.
+
+---
+
+## Authentication and User Features
+
+### JWT Authentication
+- **Signup/Login**: Users create accounts with email/password. Passwords are hashed with bcrypt.
+- **JWT Tokens**: 30-minute access tokens and 7-day refresh tokens, signed with HS256.
+- **Protected Endpoints**: Some API endpoints require authentication via the `Authorization: Bearer <token>` header.
+
+### Portfolio Tracking
+Users can track their stock holdings and see profit/loss calculations via the Portfolio endpoints.
+
+### Watchlists
+Users can create watchlists of stocks they're interested in and receive updates.
+
+### WebSocket Support
+The backend supports WebSocket connections for real-time ticker price updates.
+
+---
+
+## Infrastructure and Deployment
+
+### Docker Compose (5 Services)
+The project is fully containerized with `docker-compose.yml`:
+
+| Service | Image | Port | Purpose |
+|---|---|---|---|
+| **db** | postgres:15-alpine | 5432 | PostgreSQL database |
+| **redis** | redis:7-alpine | 6379 | Caching layer |
+| **migrate** | custom backend image | - | Runs Alembic DB migrations at startup |
+| **backend** | custom Python image | 8000 | FastAPI API server |
+| **frontend** | custom Node.js image | 3000 | Next.js web app |
+
+A `docker-compose.dev.yml` provides development overrides with hot-reload volumes.
+
+### Nginx Reverse Proxy (`deployment/nginx.conf`)
+- TLS/SSL termination (TLS 1.2 and 1.3)
+- Rate limiting (10 req/s general, 5 req/s for auth endpoints)
+- Security headers: HSTS, CSP, X-Frame-Options, X-Content-Type-Options
+- Proxies `/api/*` to the backend and everything else to the frontend
+
+### Kubernetes (`deployment/kubernetes.yaml`)
+- 3-replica backend Deployment
+- ClusterIP Service for internal communication
+
+### CI/CD (`.github/workflows/main.yml`)
+- GitHub Actions pipeline for testing, building Docker images, and deployment
+
+---
+
+## Middleware and Cross-Cutting Concerns
+
+| Feature | Implementation |
+|---|---|
+| **Rate Limiting** | SlowAPI (10 req/s general, 5 req/s auth) |
+| **Error Handling** | Custom middleware (`middleware/error_handler.py`) |
+| **Request Logging** | Structured logging with Loguru (`middleware/logging.py`) |
+| **Prometheus Metrics** | Request count and latency histograms (`monitoring/metrics.py`) |
+
+---
+
+## Technology Stack Summary
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 15, React 19, TypeScript, TailwindCSS, Recharts, React Query |
+| **Backend** | FastAPI, Python 3.12, SQLAlchemy, Pydantic |
+| **Database** | PostgreSQL 15 |
+| **Cache** | Redis 7 |
+| **ML** | XGBoost, TensorFlow (LSTM), Prophet, scikit-learn |
+| **AI/LLM** | Groq API (LLaMA 3.3 70B) |
+| **Sentiment** | VADER Sentiment Analysis |
+| **Market Data** | Yahoo Finance (yfinance) |
+| **Containers** | Docker, Docker Compose |
+| **Proxy** | Nginx (TLS, rate limiting) |
+| **Orchestration** | Kubernetes |
+| **CI/CD** | GitHub Actions |
+| **Monitoring** | Prometheus, Loguru |
+
+---
+
+## Project File Structure Overview
+
+```
+stockJEDI/
+├── backend/                 # FastAPI Python backend
+│   ├── app/
+│   │   ├── main.py         # Entry point (FastAPI app, model preloading)
+│   │   ├── api/            # REST endpoints (stock, prediction, report, sentiment, portfolio, watchlist)
+│   │   ├── services/       # Business logic (AI, market, prediction, sentiment)
+│   │   ├── models/         # SQLAlchemy ORM models
+│   │   ├── schemas/        # Pydantic validation schemas
+│   │   ├── auth/           # JWT authentication
+│   │   ├── middleware/      # Error handling, logging, rate limiting
+│   │   └── monitoring/     # Prometheus metrics
+│   └── alembic/            # Database migrations
+├── frontend/                # Next.js React frontend
+│   └── src/
+│       ├── app/            # Pages (home, stock/[ticker], login, signup)
+│       ├── components/     # UI components (cards, charts, layout)
+│       └── services/       # API client (Axios)
+├── ml/                      # Machine learning pipeline
+│   ├── datasets/           # Data collection scripts
+│   ├── features/           # Feature engineering
+│   ├── training/           # Model training scripts
+│   ├── evaluation/         # Metrics and backtest results
+│   └── saved_models/       # Pre-trained model files (XGBoost, LSTM, Prophet, Ensemble)
+├── deployment/              # Nginx config, Kubernetes manifests
+├── docs/                    # 12 documentation files
+└── docker-compose.yml       # Production Docker orchestration
+```
+
+---
+
+## Key Design Decisions
+
+1. **Ensemble approach over single model**: Using three different ML paradigms (gradient boosting, deep learning, time series decomposition) and combining them with a stacking meta-model provides more robust predictions than any single model could.
+
+2. **LLM for report generation**: Rather than templated reports, the system uses a large language model (LLaMA 3.3 70B via Groq) to generate natural-language investment analysis. This makes reports more readable and nuanced.
+
+3. **Redis caching**: Market data from Yahoo Finance is cached for 1 hour to reduce API load and improve response times.
+
+4. **URL-to-ticker extraction**: Supporting URLs from 8 financial platforms allows users to simply paste a link rather than looking up ticker symbols.
+
+5. **Multi-stage Docker builds**: Both backend and frontend use multi-stage Docker builds for smaller, more secure production images.
+
+6. **Separation of training and inference**: ML models are trained offline and served as pre-trained files, keeping the API server lightweight.
